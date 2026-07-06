@@ -1,0 +1,126 @@
+name: CI/CD – Flutter Mobile + Firebase Hosting
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+env:
+  FLUTTER_VERSION: '3.24.0' # adjust to your Flutter version
+  FIREBASE_DIR: professional-portfolio
+
+jobs:
+  # -------------------------
+  # 1. Flutter Mobile Build
+  # -------------------------
+  build-mobile:
+    name: Build Flutter Mobile (Android/iOS)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run Flutter tests (optional)
+        run: flutter test
+
+      - name: Build Android APK
+        run: flutter build apk --release
+
+      - name: Build Android App Bundle (for Play Store)
+        run: flutter build appbundle --release
+
+      - name: Build iOS (macOS required for real build; here we just prepare)
+        # Note: Real iOS builds require macOS runner; this is a placeholder
+        run: echo "iOS build requires macOS runner; configure separately if needed."
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-artifacts
+          path:
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/bundle/release/*.aar
+
+  # -------------------------
+  # 2. Web Build & Firebase Deploy
+  # -------------------------
+  build-and-deploy-web:
+    name: Build Web & Deploy to Firebase Hosting
+    runs-on: ubuntu-22.04
+    needs: build-mobile
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Validate Firebase config
+        run: |
+          cd ${{ env.FIREBASE_DIR }}
+          firebase --version
+          firebase login:ci --non-interactive 2>/dev/null || echo "Using FIREBASE_TOKEN secret"
+
+      - name: Deploy to Firebase Hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          cd ${{ env.FIREBASE_DIR }}
+          firebase deploy --only hosting --project $FIREBASE_PROJECT_ID
+
+  # -------------------------
+  # 3. Mobile Browser Pipeline (Optional)
+  # -------------------------
+  # This job can:
+  #   - Publish APKs to an internal URL (e.g. Firebase Storage, S3, or GitHub Releases)
+  #   - Or send to internal testing tracks (Play Console / App Store)
+  mobile-browser-pipeline:
+    name: Mobile Browser Pipeline (APK Distribution)
+    runs-on: ubuntu-22.04
+    needs: build-mobile
+
+    steps:
+      - name: Download Android artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: android-artifacts
+          path: ./android-artifacts
+
+      - name: Create GitHub Release (optional)
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        with:
+          tag_name: mobile-${{ github.sha }}
+          name: Mobile Build – ${{ github.sha }}
+          body: 'Automated mobile build from CI/CD pipeline.'
+          files:
+            ./android-artifacts/*.apk
+            ./android-artifacts/*.aar
+
+      # Example: You could also upload to Firebase Storage or S3 here
+      # - name: Upload APKs to Firebase Storage
+      #   uses: firebase/firebase-action@vX
+      #   with:
+      #     command: storage upload ...
