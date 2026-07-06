@@ -1,0 +1,131 @@
+name: CI/CD – GitHub Pages + Firebase Hosting
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  # Firebase project folder (root of your repo)
+  FIREBASE_DIR: .
+
+jobs:
+  # -------------------------
+  # 1. Static Site Checks
+  # -------------------------
+  validate:
+    name: Validate Static Site
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Lint HTML (basic check)
+        run: |
+          echo "Basic HTML structure check:"
+          for file in index.html about.html services.html portfolio.html blog.html contact.html resume.html team.html pricing.html faq.html; do
+            if [ ! -f "$file" ]; then
+              echo "Missing: $file"
+              exit 1
+            fi
+          done
+          echo "All 10 pages present."
+
+      - name: Check CSS & JS files
+        run: |
+          echo "Checking CSS and JS:"
+          if [ ! -f "css/main.css" ]; then echo "Missing: css/main.css"; exit 1; fi
+          if [ ! -f "css/custom.css" ]; then echo "Missing: css/custom.css"; exit 1; fi
+          if [ ! -f "css/animations.css" ]; then echo "Missing: css/animations.css"; exit 1; fi
+          if [ ! -f "js/main.js" ]; then echo "Missing: js/main.js"; exit 1; fi
+          if [ ! -f "js/custom.js" ]; then echo "Missing: js/custom.js"; exit 1; fi
+          if [ ! -f "js/animations.js" ]; then echo "Missing: js/animations.js"; exit 1; fi
+          echo "All CSS/JS files present."
+
+  # -------------------------
+  # 2. Deploy to GitHub Pages
+  # -------------------------
+  deploy-github-pages:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-22.04
+    needs: validate
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # -------------------------
+  # 3. Deploy to Firebase Hosting
+  # -------------------------
+  deploy-firebase:
+    name: Deploy to Firebase Hosting
+    runs-on: ubuntu-22.04
+    needs: validate
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase Hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          firebase deploy --only hosting --project $FIREBASE_PROJECT_ID
+
+  # -------------------------
+  # 4. Mobile Browser Pipeline (Placeholder)
+  # -------------------------
+  mobile-browser-pipeline:
+    name: Mobile Browser Pipeline (Placeholder)
+    runs-on: ubuntu-22.04
+    needs: [validate, deploy-github-pages, deploy-firebase]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Info
+        run: |
+          echo "Mobile build pipeline is a placeholder."
+          echo "When you add Flutter code (android/, ios/, lib/, pubspec.yaml), we can extend this job to:"
+          echo "  - flutter build apk --release"
+          echo "  - create GitHub Releases with APKs"
+          echo "  - optionally upload to Firebase Storage"
