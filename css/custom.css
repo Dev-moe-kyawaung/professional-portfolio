@@ -1,0 +1,44 @@
+/* custom.css – Premium styling for professional portfolio */
+
+/* Hero section */
+.hero-section {
+  background: linear-gradient(135deg, #1e3c72, #2a5298);
+  min-height: 80vh;
+}
+
+.hero-title {
+  font-size: 3rem;
+  font-weight: 700;
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  opacity: 0.9;
+}
+
+/* Custom icons */
+.icon-large {
+  font-size: 2.5rem;
+  color: #2a5298;
+}
+
+/* Hover lift effect */
+.hover-lift {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* General card improvements */
+.card {
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
